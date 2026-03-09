@@ -1,6 +1,5 @@
 import java.io.*;
 import java.net.*;
-import java.util.ArrayList; // NOUVEAU : Nécessaire pour recevoir la liste des coups
 
 class Client {
 
@@ -20,7 +19,7 @@ class Client {
 
     public static void appliquerCoup(int[][] board, String move) {
         if (move == null || move.isEmpty()) return;
-        move = move.replace("-", "").trim();
+        move = move.replace("-", "").replace(" ", "").trim();
         
         if (move.length() >= 4) {
             int startCol = move.charAt(0) - 'A';
@@ -45,7 +44,7 @@ class Client {
     BufferedInputStream input;
     BufferedOutputStream output;
         int[][] board = new int[8][8];
-        int maCouleur = 4; // NOUVEAU : On retient notre couleur (4 pour Rouge, 2 pour Noir)
+        int maCouleur = 4; // On retient notre couleur (4 pour Rouge, 2 pour Noir)
     
     try {
         MyClient = new Socket("localhost", 8888);
@@ -60,6 +59,7 @@ class Client {
             cmd = (char)input.read();
             System.out.println(cmd);
             
+            // Debut de la partie en joueur blanc (Rouge)
             if(cmd == '1'){
                 maCouleur = 4; // Je suis Rouge
                 byte[] aBuffer = new byte[1024];
@@ -81,22 +81,19 @@ class Client {
 
                 afficherPlateau(board);
 
-                // --- TEST GÉNÉRATEUR ---
-                System.out.println(">>> COUPS POSSIBLES TROUVÉS PAR L'IA :");
-                ArrayList<Coup> coupsPossibles = JoueurIA.genererMouvements(board, maCouleur);
-                for(Coup c : coupsPossibles) {
-                    System.out.print(c.versServeur() + " | ");
-                }
-                System.out.println("\n--------------------------------------");
-
-                System.out.println("Nouvelle partie! Vous jouez blanc (rouge), entrez votre premier coup : ");
-                String move = console.readLine();
+                System.out.println("L'IA (Rouge) réfléchit à son premier coup...");
+                // Appel à l'IA avec une profondeur de 5
+                Coup meilleurCoup = JoueurIA.getMeilleurCoup(board, 5, maCouleur);
+                String move = meilleurCoup.versServeur();
+                System.out.println("L'IA a choisi : " + move);
+                
                 appliquerCoup(board, move);
                 
                 output.write(move.getBytes(),0,move.length());
                 output.flush();
             }
             
+            // Debut de la partie en joueur Noir
             if(cmd == '2'){
                 maCouleur = 2; // Je suis Noir
                 System.out.println("Nouvelle partie! Vous jouez noir, attendez le coup des blancs");
@@ -119,6 +116,7 @@ class Client {
                 afficherPlateau(board);
             }
 
+            // Le serveur demande le prochain coup
             if(cmd == '3'){
                 byte[] aBuffer = new byte[16];
                 
@@ -132,16 +130,11 @@ class Client {
                 appliquerCoup(board, s);
                 afficherPlateau(board);
                 
-                // --- TEST GÉNÉRATEUR ---
-                System.out.println(">>> COUPS POSSIBLES TROUVÉS PAR L'IA :");
-                ArrayList<Coup> coupsPossibles = JoueurIA.genererMouvements(board, maCouleur);
-                for(Coup c : coupsPossibles) {
-                    System.out.print(c.versServeur() + " | ");
-                }
-                System.out.println("\n--------------------------------------");
-
-                System.out.println("Entrez votre coup : ");
-                String move = console.readLine();
+                System.out.println("L'IA réfléchit...");
+                // Appel à l'IA avec une profondeur de 5
+                Coup meilleurCoup = JoueurIA.getMeilleurCoup(board, 5, maCouleur);
+                String move = meilleurCoup.versServeur();
+                System.out.println("L'IA a choisi : " + move);
                 
                 appliquerCoup(board, move);
                 
@@ -149,24 +142,31 @@ class Client {
                 output.flush();
             }
             
+            // Le dernier coup est invalide
             if(cmd == '4'){
-                System.out.println("Coup invalide, entrez un nouveau coup : ");
-                String move = console.readLine();
+                System.out.println("Coup invalide, le serveur demande un nouveau coup.");
+                // Si l'IA fait une erreur, on lui redemande de calculer (ne devrait pas arriver avec un bon générateur)
+                Coup meilleurCoup = JoueurIA.getMeilleurCoup(board, 5, maCouleur);
+                String move = meilleurCoup.versServeur();
+                System.out.println("L'IA tente ce nouveau coup : " + move);
+                
                 appliquerCoup(board, move);
                 output.write(move.getBytes(),0,move.length());
                 output.flush();
             }
             
+            // La partie est terminée
             if(cmd == '5'){
                 byte[] aBuffer = new byte[16];
                 int size = input.available();
                 input.read(aBuffer,0,size);
                 String s = new String(aBuffer).trim();
-                System.out.println("Partie Terminé. Le dernier coup joué est: " + s);
+                System.out.println("Partie Terminée. Le dernier coup joué est: " + s);
                 appliquerCoup(board, s);
                 afficherPlateau(board);
                 
-                String move = console.readLine();
+                // On peut juste envoyer "OK" ou fermer la connexion ici
+                String move = "OK\n";
                 output.write(move.getBytes(),0,move.length());
                 output.flush();
             }
