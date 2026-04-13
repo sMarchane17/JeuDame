@@ -2,124 +2,148 @@ import java.util.ArrayList;
 
 public class JoueurIA {
 
-    // ==========================================
-    // VARIABLES POUR LE CHRONOMÈTRE
-    // ==========================================
     private static long tempsDebut;
     private static boolean tempsEcoule;
-    private static final long TEMPS_MAX = 4500; // 4.5 secondes de temps de réflexion maximum
+    private static final long TEMPS_MAX = 4500; // Ne touche pas à ça, c'est ton arme secrète !
 
-    // 1. Méthode qui génère tous les coups possibles pour un joueur donné
     public static ArrayList<Coup> genererMouvements(int[][] board, int joueur) {
         ArrayList<Coup> mouvementsPossibles = new ArrayList<>(40);
-        
         int direction = (joueur == 4) ? -1 : 1;
+        int ligneVictoire = (joueur == 4) ? 0 : 7;
         
         for (int l = 0; l < 8; l++) {
             for (int c = 0; c < 8; c++) {
-                
                 if (board[l][c] == joueur) {
                     int nl = l + direction;
-                    
                     if (nl >= 0 && nl < 8) {
                         
-                        // Règle 1 : Mouvement TOUT DROIT
+                        // Règle 1 : TOUT DROIT
                         if (board[nl][c] == 0) {
-                            mouvementsPossibles.add(new Coup(l, c, nl, c));
+                            Coup coupDroit = new Coup(l, c, nl, c);
+                            if (nl == ligneVictoire) {
+                                ArrayList<Coup> win = new ArrayList<>(); win.add(coupDroit); return win; 
+                            }
+                            mouvementsPossibles.add(coupDroit);
                         }
                         
-                        // Règle 2 : Mouvement DIAGONALE GAUCHE
+                        // Règle 2 : DIAGONALE GAUCHE
                         if (c - 1 >= 0 && board[nl][c - 1] != joueur) {
-                            mouvementsPossibles.add(new Coup(l, c, nl, c - 1));
+                            Coup coupGauche = new Coup(l, c, nl, c - 1);
+                            if (nl == ligneVictoire) {
+                                ArrayList<Coup> win = new ArrayList<>(); win.add(coupGauche); return win; 
+                            }
+                            if (board[nl][c - 1] != 0) mouvementsPossibles.add(0, coupGauche); 
+                            else mouvementsPossibles.add(coupGauche);
                         }
                         
-                        // Règle 3 : Mouvement DIAGONALE DROITE
+                        // Règle 3 : DIAGONALE DROITE
                         if (c + 1 < 8 && board[nl][c + 1] != joueur) {
-                            mouvementsPossibles.add(new Coup(l, c, nl, c + 1));
+                            Coup coupDroitDiag = new Coup(l, c, nl, c + 1);
+                            if (nl == ligneVictoire) {
+                                ArrayList<Coup> win = new ArrayList<>(); win.add(coupDroitDiag); return win; 
+                            }
+                            if (board[nl][c + 1] != 0) mouvementsPossibles.add(0, coupDroitDiag); 
+                            else mouvementsPossibles.add(coupDroitDiag);
                         }
                     }
                 }
             }
         }
-        
         return mouvementsPossibles;
     }
 
-    // 2. Fonction d'évaluation avec le système de score exponentiel
+    // L'ÉVALUATION DE CHAMPIONNAT (Ce que les autres n'auront pas)
     public static int evaluerPlateau(int[][] board, int maCouleur) {
         int score = 0;
+        int couleurAdversaire = (maCouleur == 4) ? 2 : 4;
+
+        int monMaxAvancement = 0;
+        int advMaxAvancement = 0;
         int nbMoi = 0;
         int nbAdversaire = 0;
-        int couleurAdversaire = (maCouleur == 4) ? 2 : 4;
 
         for (int l = 0; l < 8; l++) {
             for (int c = 0; c < 8; c++) {
                 
-                // Si c'est MON pion (Positif)
+                // --- MES PIONS ---
                 if (board[l][c] == maCouleur) { 
                     if (maCouleur == 4 && l == 0) return 1000000;
                     if (maCouleur == 2 && l == 7) return 1000000;
                     
                     nbMoi++;
-                    // Bonus d'avancement exponentiel (au carré)
-                    if (maCouleur == 4) {
-                        int avancee = 7 - l;
-                        score += (avancee * avancee) * 5; 
-                    }
-                    if (maCouleur == 2) {
-                        int avancee = l;
-                        score += (avancee * avancee) * 5; 
+                    int avancee = (maCouleur == 4) ? (7 - l) : l;
+                    monMaxAvancement = Math.max(monMaxAvancement, avancee);
+                    
+                    score += (avancee * avancee) * 5; 
+                    if (c >= 2 && c <= 5) score += 10; // Contrôle du centre
+                    
+                    // SYSTÈME D'ALARME OFFENSIF
+                    if (avancee == 6) score += 50000; // Je suis à 1 case de gagner, fonce !
+                    
+                    // GARDES ROYAUX : Bonus si je garde des pions sur ma première ligne pour bloquer
+                    if (maCouleur == 4 && l == 7) score += 20;
+                    if (maCouleur == 2 && l == 0) score += 20;
+                    
+                    // COUVERTURE MUTUELLE
+                    if (maCouleur == 4 && l < 7) {
+                        if (c > 0 && board[l+1][c-1] == maCouleur) score += 15;
+                        if (c < 7 && board[l+1][c+1] == maCouleur) score += 15;
+                    } else if (maCouleur == 2 && l > 0) {
+                        if (c > 0 && board[l-1][c-1] == maCouleur) score += 15;
+                        if (c < 7 && board[l-1][c+1] == maCouleur) score += 15;
                     }
                 } 
                 
-                // Si c'est le pion de l'ADVERSAIRE (Négatif)
+                // --- PIONS ADVERSES ---
                 else if (board[l][c] == couleurAdversaire) { 
                     if (couleurAdversaire == 4 && l == 0) return -1000000;
                     if (couleurAdversaire == 2 && l == 7) return -1000000;
                     
                     nbAdversaire++;
-                    // Malus d'avancement de l'adversaire exponentiel
-                    if (couleurAdversaire == 4) {
-                        int avancee = 7 - l;
-                        score -= (avancee * avancee) * 5;
-                    }
-                    if (couleurAdversaire == 2) {
-                        int avancee = l;
-                        score -= (avancee * avancee) * 5;
+                    int avancee = (couleurAdversaire == 4) ? (7 - l) : l;
+                    advMaxAvancement = Math.max(advMaxAvancement, avancee);
+                    
+                    score -= (avancee * avancee) * 5;
+                    if (c >= 2 && c <= 5) score -= 10;
+                    
+                    // SYSTÈME D'ALARME DÉFENSIF (La solution anti-Niveau 3)
+                    if (avancee == 6) score -= 50000; // Il est à 1 case de gagner, PANIQUE, tuez-le !
+                    
+                    // COUVERTURE ADVERSE
+                    if (couleurAdversaire == 4 && l < 7) {
+                        if (c > 0 && board[l+1][c-1] == couleurAdversaire) score -= 15;
+                        if (c < 7 && board[l+1][c+1] == couleurAdversaire) score -= 15;
+                    } else if (couleurAdversaire == 2 && l > 0) {
+                        if (c > 0 && board[l-1][c-1] == couleurAdversaire) score -= 15;
+                        if (c < 7 && board[l-1][c+1] == couleurAdversaire) score -= 15;
                     }
                 }
             }
         }
 
-        // Avantage matériel : Mes pions moins ses pions
-        score += (nbMoi - nbAdversaire) * 30;
+        // L'Instinct de survie global
+        if (monMaxAvancement > advMaxAvancement) score += 100;
+        else if (advMaxAvancement > monMaxAvancement) score -= 100;
+
+        score += (nbMoi - nbAdversaire) * 30; // La guerre des nombres
 
         return score;
     }
 
-    // 3. Outil pour copier le plateau lors des simulations
     public static int[][] copierPlateau(int[][] original) {
         int[][] copie = new int[8][8];
-        for (int i = 0; i < 8; i++) {
-            System.arraycopy(original[i], 0, copie[i], 0, 8);
-        }
+        for (int i = 0; i < 8; i++) System.arraycopy(original[i], 0, copie[i], 0, 8);
         return copie;
     }
 
-    // 4. L'algorithme Minimax avec élagage Alpha-Beta et contrôle du temps
     public static int minimax(int[][] plateau, int profondeur, int alpha, int beta, boolean maximisant, int maCouleur, int couleurAdversaire) {
-        
-        // VÉRIFICATION DU TEMPS : On coupe tout si on dépasse 4.5s
         if (System.currentTimeMillis() - tempsDebut > TEMPS_MAX) {
             tempsEcoule = true;
             return evaluerPlateau(plateau, maCouleur);
         }
 
         int score = evaluerPlateau(plateau, maCouleur);
-        
-        if (profondeur == 0 || Math.abs(score) >= 900000) {
-            return score;
-        }
+        if (profondeur == 0 || Math.abs(score) >= 900000) return score;
 
         if (maximisant) {
             int maxEval = Integer.MIN_VALUE;
@@ -131,18 +155,13 @@ public class JoueurIA {
                 nouveauPlateau[coup.ligneDepart][coup.colonneDepart] = 0;
                 
                 int eval = minimax(nouveauPlateau, profondeur - 1, alpha, beta, false, maCouleur, couleurAdversaire);
-                
                 maxEval = Math.max(maxEval, eval);
                 alpha = Math.max(alpha, eval);
-                
-                if (beta <= alpha) {
-                    break; 
-                }
+                if (beta <= alpha) break; 
             }
             return maxEval;
             
         } else {
-            // Tour de l'adversaire (Minimisant)
             int minEval = Integer.MAX_VALUE;
             ArrayList<Coup> mouvements = genererMouvements(plateau, couleurAdversaire);
             
@@ -152,39 +171,32 @@ public class JoueurIA {
                 nouveauPlateau[coup.ligneDepart][coup.colonneDepart] = 0;
                 
                 int eval = minimax(nouveauPlateau, profondeur - 1, alpha, beta, true, maCouleur, couleurAdversaire);
-                
                 minEval = Math.min(minEval, eval);
                 beta = Math.min(beta, eval);
-                
-                if (beta <= alpha) {
-                    break; 
-                }
+                if (beta <= alpha) break; 
             }
             return minEval;
         }
     }
 
-    // 5. La méthode principale (Chef d'Orchestre) avec Iterative Deepening
     public static Coup getMeilleurCoup(int[][] plateau, int profondeurDemande, int maCouleur) {
-        tempsDebut = System.currentTimeMillis(); // On démarre le chrono
+        tempsDebut = System.currentTimeMillis(); 
         tempsEcoule = false;
         
         int couleurAdversaire = (maCouleur == 4) ? 2 : 4;
         ArrayList<Coup> mouvements = genererMouvements(plateau, maCouleur);
         
-        // Sécurité anti-crash au cas où la liste serait vide
         if (mouvements.isEmpty()) return null; 
         
         Coup meilleurCoupAbsolu = mouvements.get(0); 
         int meilleurScoreGlobal = Integer.MIN_VALUE;
         
-        // Boucle d'exploration progressive (Iterative Deepening)
         for (int profondeur = 1; profondeur <= 20; profondeur++) {
             int meilleurScoreProfondeur = Integer.MIN_VALUE;
             Coup meilleurCoupProfondeur = null;
             
             for (Coup coup : mouvements) {
-                if (tempsEcoule) break; // Arrêt d'urgence si le temps est écoulé
+                if (tempsEcoule) break; 
                 
                 int[][] nouveauPlateau = copierPlateau(plateau);
                 nouveauPlateau[coup.ligneArrivee][coup.colonneArrivee] = nouveauPlateau[coup.ligneDepart][coup.colonneDepart];
@@ -198,22 +210,17 @@ public class JoueurIA {
                 }
             }
             
-            // Si le chrono a sonné pendant la recherche de cette profondeur, on l'annule
             if (tempsEcoule) {
-                System.out.println("-> Temps limite de 4.5s atteint. Profondeur complétée : " + (profondeur - 1));
+                System.out.println("-> Temps limite (4.5s) atteint. Profondeur complétée : " + (profondeur - 1));
                 break; 
             }
             
-            // Si on a fini la profondeur à temps, on met à jour notre choix officiel
             if (meilleurCoupProfondeur != null) {
                 meilleurCoupAbsolu = meilleurCoupProfondeur;
                 meilleurScoreGlobal = meilleurScoreProfondeur;
             }
             
-            // Si on trouve un coup qui garantit la victoire absolue, on arrête de chercher
-            if (meilleurScoreGlobal >= 900000) {
-                break;
-            }
+            if (meilleurScoreGlobal >= 900000) break;
         }
         
         return meilleurCoupAbsolu;
