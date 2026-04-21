@@ -4,7 +4,7 @@ public class JoueurIA {
 
     private static long tempsDebut;
     private static boolean tempsEcoule;
-    private static final long TEMPS_MAX = 4500; // Ne touche pas à ça, c'est ton arme secrète !
+    private static final long TEMPS_MAX = 4500;
 
     public static ArrayList<Coup> genererMouvements(int[][] board, int joueur) {
         ArrayList<Coup> mouvementsPossibles = new ArrayList<>(40);
@@ -17,7 +17,7 @@ public class JoueurIA {
                     int nl = l + direction;
                     if (nl >= 0 && nl < 8) {
                         
-                        // Règle 1 : TOUT DROIT
+                        // Règle 1 : aller tout droit
                         if (board[nl][c] == 0) {
                             Coup coupDroit = new Coup(l, c, nl, c);
                             if (nl == ligneVictoire) {
@@ -26,7 +26,7 @@ public class JoueurIA {
                             mouvementsPossibles.add(coupDroit);
                         }
                         
-                        // Règle 2 : DIAGONALE GAUCHE
+                        // Règle 2 : aller en diagonale gauche
                         if (c - 1 >= 0 && board[nl][c - 1] != joueur) {
                             Coup coupGauche = new Coup(l, c, nl, c - 1);
                             if (nl == ligneVictoire) {
@@ -36,7 +36,7 @@ public class JoueurIA {
                             else mouvementsPossibles.add(coupGauche);
                         }
                         
-                        // Règle 3 : DIAGONALE DROITE
+                        // Règle 3 : aller en diagonale droite
                         if (c + 1 < 8 && board[nl][c + 1] != joueur) {
                             Coup coupDroitDiag = new Coup(l, c, nl, c + 1);
                             if (nl == ligneVictoire) {
@@ -52,7 +52,7 @@ public class JoueurIA {
         return mouvementsPossibles;
     }
 
-    // L'ÉVALUATION DE CHAMPIONNAT (Ce que les autres n'auront pas)
+    // Évaluation de l'état du plateau
     public static int evaluerPlateau(int[][] board, int maCouleur) {
         int score = 0;
         int couleurAdversaire = (maCouleur == 4) ? 2 : 4;
@@ -65,7 +65,7 @@ public class JoueurIA {
         for (int l = 0; l < 8; l++) {
             for (int c = 0; c < 8; c++) {
                 
-                // --- MES PIONS ---
+                // --- mes pions ---
                 if (board[l][c] == maCouleur) { 
                     if (maCouleur == 4 && l == 0) return 1000000;
                     if (maCouleur == 2 && l == 7) return 1000000;
@@ -77,14 +77,14 @@ public class JoueurIA {
                     score += (avancee * avancee) * 5; 
                     if (c >= 2 && c <= 5) score += 10; // Contrôle du centre
                     
-                    // SYSTÈME D'ALARME OFFENSIF
-                    if (avancee == 6) score += 50000; // Je suis à 1 case de gagner, fonce !
+                    // Système offensif
+                    if (avancee == 6) score += 50000; // Je suis à 1 case de gagner.
                     
-                    // GARDES ROYAUX : Bonus si je garde des pions sur ma première ligne pour bloquer
+                    // Je garde des pions sur ma première ligne pour bloquer
                     if (maCouleur == 4 && l == 7) score += 20;
                     if (maCouleur == 2 && l == 0) score += 20;
                     
-                    // COUVERTURE MUTUELLE
+                    // couverture toujours d'un pion
                     if (maCouleur == 4 && l < 7) {
                         if (c > 0 && board[l+1][c-1] == maCouleur) score += 15;
                         if (c < 7 && board[l+1][c+1] == maCouleur) score += 15;
@@ -94,7 +94,7 @@ public class JoueurIA {
                     }
                 } 
                 
-                // --- PIONS ADVERSES ---
+                // --- pions adversaire ---
                 else if (board[l][c] == couleurAdversaire) { 
                     if (couleurAdversaire == 4 && l == 0) return -1000000;
                     if (couleurAdversaire == 2 && l == 7) return -1000000;
@@ -106,10 +106,10 @@ public class JoueurIA {
                     score -= (avancee * avancee) * 5;
                     if (c >= 2 && c <= 5) score -= 10;
                     
-                    // SYSTÈME D'ALARME DÉFENSIF (La solution anti-Niveau 3)
-                    if (avancee == 6) score -= 50000; // Il est à 1 case de gagner, PANIQUE, tuez-le !
+                    // Système défensif
+                    if (avancee == 6) score -= 50000; // Il est à 1 case de gagner
                     
-                    // COUVERTURE ADVERSE
+                    // couverture adversaire
                     if (couleurAdversaire == 4 && l < 7) {
                         if (c > 0 && board[l+1][c-1] == couleurAdversaire) score -= 15;
                         if (c < 7 && board[l+1][c+1] == couleurAdversaire) score -= 15;
@@ -121,11 +121,10 @@ public class JoueurIA {
             }
         }
 
-        // L'Instinct de survie global
         if (monMaxAvancement > advMaxAvancement) score += 100;
         else if (advMaxAvancement > monMaxAvancement) score -= 100;
 
-        score += (nbMoi - nbAdversaire) * 30; // La guerre des nombres
+        score += (nbMoi - nbAdversaire) * 30;
 
         return score;
     }
